@@ -412,7 +412,6 @@ footer {
       <a href="#pipeline">Pipeline</a>
       <a href="#arize">Arize</a>
       <a href="#stack">Stack</a>
-      <a href="#roadmap">Roadmap</a>
     </div>
     <div class="nav-pill">Arize Track · Google Hackathon</div>
   </div>
@@ -818,91 +817,7 @@ tracer_provider = <span class="fn">register</span>(
   </div>
 </section>
 
-<!-- ROADMAP -->
-<div class="divider"></div>
-<section id="roadmap">
-  <div class="sec-label reveal">06 · Roadmap</div>
-  <h2 class="reveal reveal-delay-1">Implementation Roadmap</h2>
-  <p class="sec-desc reveal reveal-delay-2">Five phases across five days. Each phase ends with a testable milestone.</p>
-  <div class="roadmap">
-    <div class="phase reveal"><div class="phase-badge p1">Phase 1</div><div class="phase-body"><h4>Foundation</h4><p>Set up Google ADK agent with OpenInference instrumentation. Create Phoenix Cloud account and confirm traces are flowing. Build the Elasticsearch index schema: <code style="font-family:var(--mono);font-size:12px;color:var(--olive);">meeting_id, date, speaker, text_chunk, embedding, topic_tags, decisions[]</code>. Write the indexing pipeline: transcript → 200-token chunks with overlap → Vertex AI embedding → Elastic index.</p><div class="phase-days">Day 1–2</div></div></div>
-    <div class="phase reveal"><div class="phase-badge p2">Phase 2</div><div class="phase-body"><h4>Core Agent Tools</h4><p>Build the agent's tool suite as ADK functions: <code style="font-family:var(--mono);font-size:12px;color:var(--olive);">search_meeting_history</code>, <code style="font-family:var(--mono);font-size:12px;color:var(--olive);">check_agenda_drift</code>, <code style="font-family:var(--mono);font-size:12px;color:var(--olive);">log_action_item</code>, <code style="font-family:var(--mono);font-size:12px;color:var(--olive);">speak</code>. Wire up streaming STT to feed a rolling 30-second transcript buffer to the agent loop.</p><div class="phase-days">Day 2–3</div></div></div>
-    <div class="phase reveal"><div class="phase-badge p3">Phase 3</div><div class="phase-body"><h4>Arize Integration</h4><p>Install and configure OpenInference instrumentation. Configure the Phoenix MCP server so the agent can call <code style="font-family:var(--mono);font-size:12px;color:var(--olive);">phoenix.get_traces()</code>, <code style="font-family:var(--mono);font-size:12px;color:var(--olive);">phoenix.get_evals()</code>, and <code style="font-family:var(--mono);font-size:12px;color:var(--olive);">phoenix.query_spans()</code> at runtime. Set up LLM-as-a-Judge eval pipeline using Gemini as judge.</p><div class="phase-days">Day 3</div></div></div>
-    <div class="phase reveal"><div class="phase-badge p4">Phase 4</div><div class="phase-body"><h4>Self-Improvement Loop</h4><p>Build the weekly optimisation job: query Phoenix for traces with eval score &lt; 0.6, group by failure type, use Gemini to generate improved prompt variants, run A/B evaluation against failing examples, promote the winner. At runtime, the agent checks its average answer quality for the current question type and adjusts retrieval strategy accordingly.</p><div class="phase-days">Day 4</div></div></div>
-    <div class="phase reveal"><div class="phase-badge p5">Phase 5</div><div class="phase-body"><h4>Dashboard &amp; Demo Polish</h4><p>Build the React dashboard: live transcript with speaker labels and topic tags, agenda adherence timeline (green on-topic / amber drifting), live action items board, meeting efficiency score with trend chart, Phoenix trace viewer embedded or linked, post-meeting summary view. Record the demo video.</p><div class="phase-days">Day 5</div></div></div>
-  </div>
-</section>
 
-<!-- JUDGING -->
-<div class="divider"></div>
-<section>
-  <div class="sec-label reveal">07 · Judging</div>
-  <h2 class="reveal reveal-delay-1">Judging Criteria Alignment</h2>
-  <p class="sec-desc reveal reveal-delay-2">How MeetAI maps to each evaluation criterion for the Arize track.</p>
-  <table class="crit-table reveal">
-    <thead><tr><th>Criterion</th><th>How MeetAI scores</th><th>Signal</th></tr></thead>
-    <tbody>
-      <tr><td><div class="crit-name">Technical implementation</div></td><td style="color:var(--muted);font-size:13.5px;">Google ADK + OpenInference tracing + Phoenix MCP + Elasticsearch hybrid search + streaming STT/TTS — full production stack with every Arize integration point covered.</td><td><span class="pill-strong">Strong</span></td></tr>
-      <tr><td><div class="crit-name">Design</div></td><td style="color:var(--muted);font-size:13.5px;">Live dashboard with agenda adherence timeline, efficiency score visualisations, trace viewer, and speaker-labelled transcript. Visually compelling demo.</td><td><span class="pill-strong">Strong</span></td></tr>
-      <tr><td><div class="crit-name">Potential impact</div></td><td style="color:var(--muted);font-size:13.5px;">Every company runs meetings. $37B/year wasted in unproductive meetings in the US alone. Universal problem with a clear, measurable improvement metric.</td><td><span class="pill-strong">Strong</span></td></tr>
-      <tr><td><div class="crit-name">Quality of idea</div></td><td style="color:var(--muted);font-size:13.5px;">Self-improving agent that gets better at running your specific meetings the more you use it. Agenda drift detection is a genuinely novel "wow" moment. Phoenix self-introspection closes the loop in a way no other submission will.</td><td><span class="pill-strong">Strong</span></td></tr>
-      <tr><td><div class="crit-name">Arize-specific</div></td><td style="color:var(--muted);font-size:13.5px;">Meaningful tracing on every agent decision, real self-improvement loop via Phoenix MCP, LLM-as-a-Judge evals on every response, and runtime self-introspection. Hits all three Arize track requirements.</td><td><span class="pill-strong">Strong</span></td></tr>
-    </tbody>
-  </table>
-</section>
-
-<!-- DEMO -->
-<div class="divider"></div>
-<section>
-  <div class="sec-label reveal">08 · Demo</div>
-  <h2 class="reveal reveal-delay-1">Demo Video Script</h2>
-  <p class="sec-desc reveal reveal-delay-2">3-minute structure. Build the video around the agenda drift scene — that's the winning shot.</p>
-  <div class="demo-list reveal">
-    <div class="demo-item"><div class="demo-time">0:00–0:20</div><div><h4>Problem Statement</h4><p>"Meetings are broken. 30% of meeting time is off-topic. Nobody remembers what was decided. MeetAI fixes this."</p></div></div>
-    <div class="demo-item"><div class="demo-time">0:20–1:00</div><div><h4>Live Q&amp;A Recall</h4><p>Show the agent joining a mock meeting. Demonstrate wake-phrase activation. Someone asks "what did we decide about the API pricing last month?" — agent speaks the answer with source attribution in under 3 seconds.</p></div></div>
-    <div class="demo-item"><div class="demo-time">1:00–1:45</div><div><h4>Agenda Drift Detection — The Wow Moment</h4><p>Conversation veers off-topic. The agent speaks up: "We've been discussing team offsites for 90 seconds — that's not on today's agenda. Should we park it?" Pause for effect. This is the scene that wins.</p></div></div>
-    <div class="demo-item"><div class="demo-time">1:45–2:20</div><div><h4>Arize Phoenix Dashboard</h4><p>Show traces for every decision the agent made. Show an eval score. Show the self-improvement loop: a previously low-scoring trace, and the improved prompt that was generated from it.</p></div></div>
-    <div class="demo-item"><div class="demo-time">2:20–3:00</div><div><h4>Post-Meeting &amp; Trend</h4><p>Auto-generated summary, action items with owners, efficiency score of 87%, full meeting indexed for future recall. Close with the trend chart showing meeting efficiency improving over weeks as the agent self-optimises.</p></div></div>
-  </div>
-</section>
-
-<!-- REPO -->
-<div class="divider"></div>
-<section>
-  <div class="sec-label reveal">09 · Repository</div>
-  <h2 class="reveal reveal-delay-1">Repository Structure</h2>
-  <p class="sec-desc reveal reveal-delay-2">Organised by concern. Each directory is independently deployable.</p>
-  <div class="repo-tree reveal">
-<span class="dir">meetai/</span>
-├── <span class="dir">agent/</span>
-│   ├── <span class="file">main.py</span>              <span class="cm"># ADK agent with Phoenix instrumentation</span>
-│   ├── <span class="file">tools.py</span>             <span class="cm"># All agent tools (search, drift, speak, log)</span>
-│   ├── <span class="file">prompts.py</span>           <span class="cm"># System prompts (versioned)</span>
-│   └── <span class="file">eval_loop.py</span>         <span class="cm"># Weekly self-improvement job</span>
-├── <span class="dir">indexer/</span>
-│   ├── <span class="file">transcriber.py</span>       <span class="cm"># STT pipeline + chunking</span>
-│   ├── <span class="file">embedder.py</span>          <span class="cm"># Vertex AI text-embedding-004</span>
-│   └── <span class="file">elastic_client.py</span>    <span class="cm"># Index schema + hybrid search</span>
-├── <span class="dir">dashboard/</span>               <span class="cm"># React frontend</span>
-│   └── <span class="dir">src/</span>
-│       ├── <span class="file">LiveTranscript.tsx</span>   <span class="cm"># Speaker-labelled live feed</span>
-│       ├── <span class="file">AgendaTimeline.tsx</span>   <span class="cm"># On-topic / drift visualisation</span>
-│       ├── <span class="file">ActionItems.tsx</span>      <span class="cm"># Live action item board</span>
-│       └── <span class="file">EfficiencyScore.tsx</span>  <span class="cm"># Score + trend chart</span>
-├── <span class="dir">api/</span>                     <span class="cm"># FastAPI backend</span>
-│   ├── <span class="file">routes.py</span>
-│   └── <span class="file">schemas.py</span>
-├── <span class="dir">evals/</span>
-│   └── <span class="file">judge.py</span>             <span class="cm"># LLM-as-a-Judge eval pipeline</span>
-├── <span class="file">docker-compose.yml</span>
-└── <span class="file">README.md</span>
-  </div>
-</section>
-
-<!-- PITCH -->
-<div class="pitch reveal">
-  <p>"MeetAI is the first AI agent that attends your meetings, enforces your agenda, recalls every past decision, and <em>continuously improves itself</em> using Arize Phoenix observability — so your meetings get measurably better every week."</p>
-</div>
 
 </div><!-- /wrap -->
 
