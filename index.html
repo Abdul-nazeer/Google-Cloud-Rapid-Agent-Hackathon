@@ -1,0 +1,964 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MeetAI — Meeting Orchestrator Agent</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ── Palette ── */
+:root {
+  --cream:   #FEFAE0;
+  --cream2:  #F7F2CC;
+  --cream3:  #EDE8B8;
+  --olive:   #606C38;
+  --olive-d: #283618;
+  --olive-l: #8A9A5B;
+  --olive-xl:#C8D5A0;
+  --warm:    #DDA15E;
+  --warm-d:  #BC6C25;
+  --text:    #1E2410;
+  --muted:   #5A6340;
+  --dim:     #8A9070;
+  --border:  rgba(96,108,56,0.18);
+  --border2: rgba(96,108,56,0.32);
+  --surface: rgba(255,255,255,0.55);
+  --surface2:rgba(255,255,255,0.8);
+  --olive-bg:rgba(96,108,56,0.08);
+  --warm-bg: rgba(221,161,94,0.12);
+  --serif: 'Lora', Georgia, serif;
+  --sans:  'Inter', system-ui, sans-serif;
+  --mono:  'JetBrains Mono', monospace;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--cream);
+  color: var(--text);
+  font-family: var(--sans);
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+/* ── Subtle grain texture ── */
+body::after {
+  content: "";
+  position: fixed; inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.025'/%3E%3C/svg%3E");
+  pointer-events: none; z-index: 0;
+}
+
+/* ── Scroll reveal ── */
+.reveal {
+  opacity: 0;
+  transform: translateY(28px);
+  transition: opacity 0.65s cubic-bezier(.22,1,.36,1), transform 0.65s cubic-bezier(.22,1,.36,1);
+}
+.reveal.visible { opacity: 1; transform: none; }
+.reveal-delay-1 { transition-delay: 0.1s; }
+.reveal-delay-2 { transition-delay: 0.2s; }
+.reveal-delay-3 { transition-delay: 0.3s; }
+.reveal-delay-4 { transition-delay: 0.4s; }
+
+/* ── Nav ── */
+nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  background: rgba(254,250,224,0.88);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--border);
+  transition: box-shadow .3s;
+}
+nav.scrolled { box-shadow: 0 2px 20px rgba(40,54,24,0.08); }
+.nav-inner {
+  max-width: 1160px; margin: 0 auto; padding: 0 32px;
+  display: flex; align-items: center; justify-content: space-between; height: 58px;
+}
+.nav-logo {
+  display: flex; align-items: center; gap: 10px;
+  font-family: var(--serif); font-weight: 600; font-size: 17px;
+  color: var(--olive-d); text-decoration: none; letter-spacing: -0.01em;
+}
+.nav-logo-mark {
+  width: 28px; height: 28px; border-radius: 7px;
+  background: var(--olive); display: flex; align-items: center; justify-content: center;
+  font-size: 13px; color: var(--cream); font-family: var(--serif); font-weight: 600;
+  flex-shrink: 0;
+  animation: logo-breathe 3s ease-in-out infinite;
+}
+@keyframes logo-breathe {
+  0%,100% { box-shadow: 0 0 0 0 rgba(96,108,56,0.3); }
+  50%      { box-shadow: 0 0 0 6px rgba(96,108,56,0); }
+}
+.nav-links { display: flex; gap: 2px; }
+.nav-links a {
+  padding: 6px 13px; font-size: 13px; font-weight: 500;
+  color: var(--muted); text-decoration: none; border-radius: 6px;
+  transition: color .15s, background .15s;
+}
+.nav-links a:hover, .nav-links a.active { color: var(--olive-d); background: var(--olive-bg); }
+.nav-pill {
+  font-family: var(--mono); font-size: 10.5px; color: var(--olive);
+  background: var(--olive-bg); border: 1px solid var(--border2);
+  padding: 5px 12px; border-radius: 20px; letter-spacing: 0.04em;
+}
+@media (max-width: 860px) { .nav-links { display: none; } }
+
+/* ── Layout ── */
+.wrap { max-width: 1160px; margin: 0 auto; padding: 0 32px 120px; position: relative; z-index: 1; }
+
+/* ── Hero ── */
+.hero { padding: 130px 0 72px; }
+.hero-tag {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--olive); background: var(--olive-bg); border: 1px solid var(--border2);
+  padding: 6px 14px; border-radius: 20px; margin-bottom: 28px;
+}
+.hero-tag-dot {
+  width: 6px; height: 6px; border-radius: 50%; background: var(--olive);
+  animation: dot-pulse 2s ease-in-out infinite;
+}
+@keyframes dot-pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.4;transform:scale(0.7)} }
+h1 {
+  font-family: var(--serif); font-size: clamp(44px, 6vw, 76px);
+  font-weight: 500; line-height: 1.06; letter-spacing: -0.02em;
+  color: var(--olive-d); margin-bottom: 22px;
+}
+h1 em { font-style: italic; color: var(--olive); }
+.hero-sub {
+  font-size: 17px; color: var(--muted); max-width: 540px;
+  line-height: 1.75; margin-bottom: 40px; font-weight: 400;
+}
+.hero-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+.btn-primary {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--olive); color: var(--cream); padding: 13px 26px;
+  border-radius: 8px; font-size: 14px; font-weight: 500; text-decoration: none;
+  transition: background .2s, transform .15s, box-shadow .2s;
+  box-shadow: 0 2px 8px rgba(96,108,56,0.25);
+}
+.btn-primary:hover { background: var(--olive-d); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(96,108,56,0.3); }
+.btn-outline {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: transparent; color: var(--olive); padding: 13px 26px;
+  border-radius: 8px; font-size: 14px; font-weight: 500; text-decoration: none;
+  border: 1.5px solid var(--border2); transition: border-color .2s, background .2s, transform .15s;
+}
+.btn-outline:hover { border-color: var(--olive); background: var(--olive-bg); transform: translateY(-2px); }
+
+/* ── Stats ── */
+.stats-row {
+  display: grid; grid-template-columns: repeat(4,1fr);
+  gap: 1px; background: var(--border); border: 1px solid var(--border);
+  border-radius: 14px; overflow: hidden; margin: 56px 0;
+}
+.stat-cell { background: var(--surface2); padding: 28px 22px; }
+.stat-n {
+  font-family: var(--serif); font-size: 38px; font-weight: 500;
+  color: var(--olive); line-height: 1; margin-bottom: 6px;
+  animation: count-in 1s ease-out both;
+}
+@keyframes count-in { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:none; } }
+.stat-l { font-size: 12px; color: var(--muted); line-height: 1.4; }
+@media (max-width: 680px) { .stats-row { grid-template-columns: repeat(2,1fr); } }
+
+/* ── Section ── */
+section { padding: 88px 0 0; }
+.sec-label {
+  font-family: var(--mono); font-size: 11px; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--olive-l); margin-bottom: 10px;
+  display: flex; align-items: center; gap: 10px;
+}
+.sec-label::before { content:""; width:18px; height:1.5px; background:var(--olive-l); }
+h2 {
+  font-family: var(--serif); font-size: clamp(28px,4vw,42px);
+  font-weight: 500; letter-spacing: -0.015em; color: var(--olive-d);
+  margin-bottom: 12px; line-height: 1.15;
+}
+.sec-desc { font-size: 15px; color: var(--muted); max-width: 580px; line-height: 1.75; margin-bottom: 40px; }
+.divider { height: 1px; background: var(--border); margin: 88px 0 0; }
+
+/* ── Feature cards ── */
+.feature-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 16px; }
+@media (max-width: 700px) { .feature-grid { grid-template-columns: 1fr; } }
+.fcard {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 16px; padding: 28px 28px 24px; position: relative; overflow: hidden;
+  transition: transform .25s cubic-bezier(.22,1,.36,1), box-shadow .25s, border-color .25s;
+  cursor: default;
+}
+.fcard::after {
+  content:""; position:absolute; inset:0;
+  background: linear-gradient(135deg, rgba(96,108,56,0.05) 0%, transparent 50%);
+  opacity:0; transition: opacity .25s;
+}
+.fcard:hover { transform: translateY(-3px); box-shadow: 0 10px 28px rgba(40,54,24,0.09); border-color: var(--border2); }
+.fcard:hover::after { opacity:1; }
+.fcard-num { position:absolute; top:20px; right:20px; font-family:var(--mono); font-size:11px; color:var(--dim); font-weight:500; }
+.fcard-icon { font-size:24px; margin-bottom:14px; display:block; }
+.fcard h3 { font-size:15px; font-weight:600; color:var(--olive-d); margin-bottom:16px; padding-bottom:12px; border-bottom:1px solid var(--border); }
+.fcard-section-label { font-family:var(--mono); font-size:9.5px; letter-spacing:0.1em; text-transform:uppercase; color:var(--olive-l); margin-bottom:5px; margin-top:14px; }
+.fcard p { font-size:13px; color:var(--muted); line-height:1.7; }
+.fcard ul { margin-top:6px; padding-left:0; list-style:none; }
+.fcard ul li { font-size:12.5px; color:var(--muted); line-height:1.65; padding:3px 0; display:flex; gap:8px; }
+.fcard ul li::before { content:"→"; color:var(--olive-l); flex-shrink:0; font-size:11px; margin-top:2px; }
+.fcard-tag { display:inline-block; margin-top:16px; font-family:var(--mono); font-size:9px; color:var(--dim); letter-spacing:0.05em; padding-top:12px; border-top:1px solid var(--border); width:100%; }
+
+/* ── Architecture ── */
+.arch-wrap {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 16px; padding: 44px 36px; margin-top: 40px; overflow-x: auto;
+}
+.arch-label {
+  font-family: var(--mono); font-size: 10.5px; color: var(--dim);
+  letter-spacing: 0.1em; text-transform: uppercase; text-align: center; margin-bottom: 36px;
+}
+.arch-row { display:flex; justify-content:center; gap:10px; flex-wrap:wrap; }
+.anode {
+  border-radius: 10px; padding: 11px 15px; text-align: center;
+  min-width: 120px; border: 1.5px solid; transition: transform .2s;
+}
+.anode:hover { transform: translateY(-2px); }
+.anode-t { font-size:12.5px; font-weight:600; margin-bottom:3px; }
+.anode-s { font-size:10px; font-family:var(--mono); opacity:0.7; }
+.anode.inp  { background:rgba(96,108,56,0.08); border-color:rgba(96,108,56,0.3); color:var(--olive-d); }
+.anode.proc { background:rgba(221,161,94,0.1); border-color:rgba(221,161,94,0.35); color:var(--warm-d); }
+.anode.core { background:var(--olive); border-color:var(--olive-d); color:var(--cream); min-width:240px; padding:16px 24px; }
+.anode.core .anode-t { font-size:15px; }
+.anode.core .anode-s { opacity:0.75; }
+.anode.out  { background:rgba(188,108,37,0.08); border-color:rgba(188,108,37,0.3); color:var(--warm-d); }
+.anode.obs  { background:rgba(40,54,24,0.08); border-color:rgba(40,54,24,0.3); color:var(--olive-d); min-width:200px; padding:14px 22px; }
+.anode.dash { background:rgba(96,108,56,0.12); border-color:var(--border2); color:var(--olive-d); min-width:200px; padding:14px 22px; }
+.arch-down { display:flex; justify-content:center; color:var(--dim); font-size:18px; padding:10px 0; }
+
+/* ── Pipeline ── */
+.pipe-list { margin-top:40px; }
+.pipe-item {
+  display:flex; gap:22px; padding:26px 0;
+  border-bottom:1px solid var(--border);
+  transition: background .2s; border-radius:4px;
+}
+.pipe-item:last-child { border-bottom:none; }
+.pipe-num {
+  width:34px; height:34px; border-radius:50%; flex-shrink:0; margin-top:2px;
+  background:var(--olive-bg); border:1.5px solid var(--border2);
+  color:var(--olive); display:flex; align-items:center; justify-content:center;
+  font-family:var(--mono); font-size:12px; font-weight:600;
+  transition: background .2s, color .2s;
+}
+.pipe-item:hover .pipe-num { background:var(--olive); color:var(--cream); }
+.pipe-body h4 { font-size:15px; font-weight:600; color:var(--olive-d); margin-bottom:6px; }
+.pipe-body p { font-size:13.5px; color:var(--muted); line-height:1.65; }
+.pipe-badge {
+  display:inline-flex; align-items:center; gap:5px; margin-top:10px;
+  background:var(--olive-bg); border:1px solid var(--border);
+  border-radius:6px; padding:4px 10px;
+  font-family:var(--mono); font-size:10px; color:var(--dim);
+}
+
+/* ── Code block ── */
+.code-wrap { background:#1C2010; border:1px solid rgba(96,108,56,0.3); border-radius:12px; overflow:hidden; margin-top:22px; }
+.code-bar { display:flex; align-items:center; justify-content:space-between; padding:11px 18px; border-bottom:1px solid rgba(255,255,255,0.06); }
+.code-dots { display:flex; gap:6px; }
+.cdot { width:10px; height:10px; border-radius:50%; }
+.cdot.r{background:#FF5F57;} .cdot.a{background:#FFBD2E;} .cdot.g{background:#28C840;}
+.code-lang { font-family:var(--mono); font-size:10.5px; color:rgba(255,255,255,0.3); }
+pre { padding:22px 24px; overflow-x:auto; font-family:var(--mono); font-size:12.5px; line-height:1.75; color:#C8D5A8; }
+.kw{color:#A8C070;} .fn{color:#E8C87A;} .str{color:#98C090;} .cm{color:#5A6840;} .dec{color:#D4A870;}
+
+/* ── Eval cards ── */
+.eval-row { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-top:40px; }
+@media (max-width:680px) { .eval-row { grid-template-columns:1fr; } }
+.eval-card {
+  background:var(--surface2); border:1px solid var(--border);
+  border-radius:12px; padding:24px;
+  transition: transform .2s, box-shadow .2s;
+}
+.eval-card:hover { transform:translateY(-3px); box-shadow:0 8px 24px rgba(40,54,24,0.08); }
+.eval-score { font-family:var(--serif); font-size:40px; font-weight:500; line-height:1; margin-bottom:8px; }
+.eval-name { font-size:13px; font-weight:600; color:var(--olive-d); margin-bottom:5px; }
+.eval-desc { font-size:12.5px; color:var(--muted); line-height:1.6; }
+.bar { height:3px; border-radius:2px; background:var(--border); margin-top:14px; overflow:hidden; }
+.bar-fill { height:100%; border-radius:2px; transition: width 1.2s cubic-bezier(.22,1,.36,1); }
+
+/* ── Self-improve grid ── */
+.improve-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-top:20px; }
+@media (max-width:700px) { .improve-grid { grid-template-columns:repeat(2,1fr); } }
+.improve-cell {
+  background:var(--olive-bg); border:1px solid var(--border);
+  border-radius:10px; padding:16px;
+  transition: background .2s, transform .2s;
+}
+.improve-cell:hover { background:rgba(96,108,56,0.14); transform:translateY(-2px); }
+.improve-cell-n { font-weight:600; font-size:13px; color:var(--olive-d); margin-bottom:5px; }
+.improve-cell-d { font-size:12px; color:var(--muted); line-height:1.55; }
+
+/* ── Stack grid ── */
+.stack-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; margin-top:40px; }
+@media (max-width:680px) { .stack-grid { grid-template-columns:1fr; } }
+.stack-row {
+  display:flex; align-items:center; justify-content:space-between;
+  background:var(--surface2); border:1px solid var(--border);
+  border-radius:10px; padding:13px 18px;
+  transition: border-color .2s, transform .2s;
+}
+.stack-row:hover { border-color:var(--border2); transform:translateX(3px); }
+.stack-comp { font-size:13px; color:var(--muted); }
+.stack-tech { font-family:var(--mono); font-size:12px; color:var(--olive-d); font-weight:500; }
+
+/* ── Roadmap ── */
+.roadmap { margin-top:40px; display:flex; flex-direction:column; gap:10px; }
+.phase {
+  background:var(--surface2); border:1px solid var(--border);
+  border-radius:12px; padding:22px 26px;
+  display:flex; gap:18px; align-items:flex-start;
+  transition: border-color .2s, transform .2s, box-shadow .2s;
+}
+.phase:hover { border-color:var(--border2); transform:translateX(4px); box-shadow:0 4px 16px rgba(40,54,24,0.07); }
+.phase-badge {
+  flex-shrink:0; font-family:var(--mono); font-size:10.5px; font-weight:600;
+  padding:4px 12px; border-radius:20px; white-space:nowrap; margin-top:2px;
+  border:1px solid;
+}
+.p1{background:rgba(96,108,56,0.1);color:var(--olive);border-color:var(--border2);}
+.p2{background:rgba(221,161,94,0.12);color:var(--warm-d);border-color:rgba(221,161,94,0.3);}
+.p3{background:rgba(40,54,24,0.08);color:var(--olive-d);border-color:rgba(40,54,24,0.2);}
+.p4{background:rgba(188,108,37,0.1);color:var(--warm-d);border-color:rgba(188,108,37,0.25);}
+.p5{background:rgba(138,154,91,0.12);color:var(--olive);border-color:rgba(138,154,91,0.3);}
+.phase-body h4 { font-size:15px; font-weight:600; color:var(--olive-d); margin-bottom:5px; }
+.phase-body p { font-size:13.5px; color:var(--muted); line-height:1.65; }
+.phase-days { font-family:var(--mono); font-size:10.5px; color:var(--dim); margin-top:5px; }
+
+/* ── Criteria table ── */
+.crit-table { width:100%; border-collapse:collapse; margin-top:32px; font-size:13.5px; }
+.crit-table th {
+  text-align:left; padding:11px 16px;
+  background:var(--olive-bg); border-bottom:1.5px solid var(--border2);
+  font-size:10.5px; font-weight:600; letter-spacing:0.08em;
+  text-transform:uppercase; color:var(--olive);
+}
+.crit-table td { padding:14px 16px; border-bottom:1px solid var(--border); vertical-align:top; }
+.crit-table tr:last-child td { border-bottom:none; }
+.crit-table tr:hover td { background:var(--olive-bg); }
+.crit-name { font-weight:600; font-size:14px; color:var(--olive-d); }
+.pill-strong {
+  display:inline-flex; align-items:center; gap:5px;
+  padding:3px 10px; border-radius:20px; font-size:11px; font-weight:600;
+  background:rgba(96,108,56,0.12); color:var(--olive); border:1px solid var(--border2);
+}
+
+/* ── Demo steps ── */
+.demo-list { margin-top:40px; }
+.demo-item { display:flex; gap:20px; padding:20px 0; border-bottom:1px solid var(--border); }
+.demo-item:last-child { border-bottom:none; }
+.demo-time { font-family:var(--mono); font-size:11.5px; color:var(--olive); flex-shrink:0; width:76px; padding-top:2px; }
+.demo-item h4 { font-size:14px; font-weight:600; color:var(--olive-d); margin-bottom:5px; }
+.demo-item p { font-size:13.5px; color:var(--muted); line-height:1.65; }
+
+/* ── Repo tree ── */
+.repo-tree {
+  background:#1C2010; border:1px solid rgba(96,108,56,0.25);
+  border-radius:12px; padding:28px 32px;
+  font-family:var(--mono); font-size:12.5px; line-height:2;
+  color:#8A9A6A; margin-top:40px;
+}
+.repo-tree .dir { color:#B8C890; }
+.repo-tree .file { color:#9AAA78; }
+.repo-tree .cm { color:#4A5830; }
+
+/* ── Pitch ── */
+.pitch {
+  background: linear-gradient(135deg, rgba(96,108,56,0.1) 0%, rgba(221,161,94,0.08) 100%);
+  border:1.5px solid var(--border2); border-radius:18px;
+  padding:52px 48px; margin-top:88px; text-align:center;
+  position:relative; overflow:hidden;
+}
+.pitch::before {
+  content:""; position:absolute; top:-60px; left:50%; transform:translateX(-50%);
+  width:400px; height:200px;
+  background:radial-gradient(ellipse, rgba(96,108,56,0.12) 0%, transparent 70%);
+  pointer-events:none;
+}
+.pitch p {
+  font-family:var(--serif); font-size:clamp(17px,2.5vw,22px);
+  font-weight:400; line-height:1.65; color:var(--olive-d);
+  max-width:780px; margin:0 auto;
+}
+.pitch p em { font-style:italic; color:var(--olive); }
+
+/* ── Footer ── */
+footer {
+  padding:40px 32px; text-align:center;
+  font-size:13px; color:var(--dim);
+  border-top:1px solid var(--border); margin-top:80px;
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav id="nav">
+  <div class="nav-inner">
+    <a href="#" class="nav-logo">
+      <div class="nav-logo-mark">M</div>
+      MeetAI
+    </a>
+    <div class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#architecture">Architecture</a>
+      <a href="#pipeline">Pipeline</a>
+      <a href="#arize">Arize</a>
+      <a href="#stack">Stack</a>
+      <a href="#roadmap">Roadmap</a>
+    </div>
+    <div class="nav-pill">Arize Track · Google Hackathon</div>
+  </div>
+</nav>
+
+<div class="wrap">
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-tag reveal">
+    <div class="hero-tag-dot"></div>
+    Meeting Orchestrator Agent · Google ADK + Arize Phoenix
+  </div>
+  <h1 class="reveal reveal-delay-1">Your meetings,<br><em>finally intelligent.</em></h1>
+  <p class="hero-sub reveal reveal-delay-2">
+    An AI agent that joins live meetings, enforces agendas, recalls every past decision,
+    and continuously improves itself using Arize Phoenix observability.
+  </p>
+  <div class="hero-actions reveal reveal-delay-3">
+    <a href="#features" class="btn-primary">Explore Features →</a>
+    <a href="#roadmap" class="btn-outline">Build Roadmap</a>
+  </div>
+</section>
+
+<!-- STATS -->
+<div class="stats-row reveal">
+  <div class="stat-cell">
+    <div class="stat-n">10</div>
+    <div class="stat-l">Agent capabilities</div>
+  </div>
+  <div class="stat-cell">
+    <div class="stat-n">3</div>
+    <div class="stat-l">Arize eval dimensions</div>
+  </div>
+  <div class="stat-cell">
+    <div class="stat-n">$37B</div>
+    <div class="stat-l">Wasted in unproductive meetings / yr (US)</div>
+  </div>
+  <div class="stat-cell">
+    <div class="stat-n">5</div>
+    <div class="stat-l">Build phases · 5 days</div>
+  </div>
+</div>
+
+<!-- FEATURES -->
+<div class="divider"></div>
+<section id="features">
+  <div class="sec-label reveal">01 · Features</div>
+  <h2 class="reveal reveal-delay-1">Full Feature Set</h2>
+  <p class="sec-desc reveal reveal-delay-2">Ten capabilities across core meeting intelligence and Arize-powered self-improvement. The first five are must-haves; the last five are the differentiators.</p>
+  <div class="feature-grid">
+
+    <!-- 01 -->
+    <div class="fcard reveal">
+      <span class="fcard-num">01</span>
+      <span class="fcard-icon">🎙️</span>
+      <h3>Live Meeting Participant</h3>
+      <div class="fcard-section-label">What it does</div>
+      <p>The agent actually joins your meeting as a participant — it listens to everything being said and can speak back when needed. Think of it as a bot sitting in the call. It wakes up when someone says "Hey MeetAI" or when it detects it's being addressed.</p>
+      <div class="fcard-section-label">How it works</div>
+      <p>We use Google Cloud Speech-to-Text Streaming API to transcribe audio in real time as people speak. When the agent needs to respond, Google Cloud Text-to-Speech converts the text to audio and plays it into the meeting channel. The bot joins via Recall.ai or a local WebRTC client.</p>
+      <div class="fcard-section-label">What you need to build</div>
+      <ul>
+        <li>Set up Recall.ai bot to join meeting calls</li>
+        <li>Wire Google Cloud STT streaming to capture live audio</li>
+        <li>Wire Google Cloud TTS to play agent responses back into the call</li>
+        <li>Implement wake-phrase detection ("Hey MeetAI")</li>
+      </ul>
+      <span class="fcard-tag">Google STT Streaming · Google TTS · Recall.ai · WebRTC</span>
+    </div>
+
+    <!-- 02 -->
+    <div class="fcard reveal reveal-delay-1">
+      <span class="fcard-num">02</span>
+      <span class="fcard-icon">🔍</span>
+      <h3>Semantic Meeting Memory</h3>
+      <div class="fcard-section-label">What it does</div>
+      <p>The agent remembers everything from every past meeting. When someone asks "what did we decide about the pricing model last month?", it finds the exact moment in the exact meeting where that was discussed and gives you the answer with the date and who said it.</p>
+      <div class="fcard-section-label">How it works</div>
+      <p>Every meeting transcript gets broken into small chunks (200 words each) and stored in Elasticsearch. Each chunk also gets converted into a vector embedding using Vertex AI. When a question comes in, we search using both keyword matching (BM25) and semantic similarity (vector search) at the same time — this hybrid approach finds the right answer even if the exact words don't match.</p>
+      <div class="fcard-section-label">What you need to build</div>
+      <ul>
+        <li>Set up Elasticsearch index with fields for meeting_id, date, speaker, text_chunk, and embedding</li>
+        <li>Build the indexing pipeline: transcript → chunk → embed → store</li>
+        <li>Build the hybrid search function that combines BM25 + vector results</li>
+        <li>Return results with meeting date and speaker name attached</li>
+      </ul>
+      <span class="fcard-tag">Elasticsearch · Vertex AI text-embedding-004 · BM25 + vector hybrid search</span>
+    </div>
+
+    <!-- 03 -->
+    <div class="fcard reveal">
+      <span class="fcard-num">03</span>
+      <span class="fcard-icon">📋</span>
+      <h3>Agenda Drift Detector</h3>
+      <div class="fcard-section-label">What it does</div>
+      <p>Before the meeting starts, you give the agent the agenda. During the meeting, it keeps track of what's actually being discussed. If the conversation goes off-topic for more than about 90 seconds, the agent speaks up and says something like "We've been talking about team offsites for 2 minutes — that's not on today's agenda. Should we park it?"</p>
+      <div class="fcard-section-label">How it works</div>
+      <p>The agent holds the agenda items as embeddings. Every 30 seconds, it takes the recent transcript and embeds it too, then measures how similar the current conversation is to each agenda item. If the similarity score drops below a threshold for long enough, it triggers the verbal intervention.</p>
+      <div class="fcard-section-label">What you need to build</div>
+      <ul>
+        <li>Embed each agenda item at meeting start</li>
+        <li>Run a background loop every 30 seconds that embeds the recent transcript window</li>
+        <li>Compare current topic embedding against agenda embeddings using cosine similarity</li>
+        <li>If drift score exceeds threshold for 90s, call the speak() tool with a redirect message</li>
+      </ul>
+      <span class="fcard-tag">Gemini classification · cosine similarity · rolling 30s buffer · verbal intervention</span>
+    </div>
+
+    <!-- 04 -->
+    <div class="fcard reveal reveal-delay-1">
+      <span class="fcard-num">04</span>
+      <span class="fcard-icon">💬</span>
+      <h3>Real-Time Q&amp;A</h3>
+      <div class="fcard-section-label">What it does</div>
+      <p>Anyone in the meeting can ask a question out loud — like "what was the budget we approved for Q3?" — and the agent will answer it in seconds, telling you exactly which meeting the answer came from and who said it.</p>
+      <div class="fcard-section-label">How it works</div>
+      <p>The STT stream detects a question (ends with "?" or matches question patterns). The agent runs a hybrid search across all indexed meetings and documents. Gemini takes the top search results and generates a clear spoken answer. The agent then speaks it back using TTS.</p>
+      <div class="fcard-section-label">What you need to build</div>
+      <ul>
+        <li>Detect question intent from the live transcript stream</li>
+        <li>Call the search_meeting_history() tool with the question as the query</li>
+        <li>Pass retrieved chunks to Gemini to generate a grounded answer</li>
+        <li>Speak the answer with source attribution ("Based on the March 5th meeting...")</li>
+      </ul>
+      <span class="fcard-tag">Hybrid search · Gemini · Google TTS · source attribution · &lt;3s response</span>
+    </div>
+
+    <!-- 05 -->
+    <div class="fcard reveal">
+      <span class="fcard-num">05</span>
+      <span class="fcard-icon">✅</span>
+      <h3>Live Action Item Tracker</h3>
+      <div class="fcard-section-label">What it does</div>
+      <p>The agent listens for phrases that signal someone is committing to do something — like "I'll handle that", "can you take care of the report?", or "let's make sure someone follows up on this". It automatically logs these as action items with who owns it, what the task is, and any deadline mentioned. These show up live on the dashboard.</p>
+      <div class="fcard-section-label">How it works</div>
+      <p>Gemini classifies each transcript chunk for action item intent. When detected, it extracts the owner (who said it or who was assigned), the task description, and any deadline mentioned. This gets stored as a structured record and pushed to the dashboard in real time.</p>
+      <div class="fcard-section-label">What you need to build</div>
+      <ul>
+        <li>Build action item intent classifier using Gemini</li>
+        <li>Extract owner, task, and deadline from the matched text</li>
+        <li>Store structured action items in the database</li>
+        <li>Push updates to the React dashboard via WebSocket or polling</li>
+      </ul>
+      <span class="fcard-tag">Gemini intent detection · structured extraction · real-time dashboard · WebSocket</span>
+    </div>
+
+    <!-- 06 -->
+    <div class="fcard reveal reveal-delay-1">
+      <span class="fcard-num">06</span>
+      <span class="fcard-icon">📦</span>
+      <h3>Post-Meeting Auto-Package</h3>
+      <div class="fcard-section-label">What it does</div>
+      <p>When the meeting ends, the agent automatically does three things: generates a clean summary of what was discussed and decided, indexes the full transcript so it's searchable in future meetings, and emails every attendee a report with the summary, action items, and a link to search the transcript.</p>
+      <div class="fcard-section-label">How it works</div>
+      <p>Gemini summarises the full transcript into sections: decisions made, action items, key discussion points. The full transcript is chunked and indexed into Elasticsearch. The summary and action items are formatted into an email and sent via a mail API (SendGrid or similar).</p>
+      <div class="fcard-section-label">What you need to build</div>
+      <ul>
+        <li>Detect meeting end event (call disconnect or manual trigger)</li>
+        <li>Run Gemini summarisation prompt on the full transcript</li>
+        <li>Index the full transcript into Elasticsearch</li>
+        <li>Format and send the post-meeting email to all attendees</li>
+      </ul>
+      <span class="fcard-tag">Gemini summarisation · Elasticsearch indexing · SendGrid email · meeting end detection</span>
+    </div>
+
+    <!-- 07 -->
+    <div class="fcard reveal">
+      <span class="fcard-num">07</span>
+      <span class="fcard-icon">📊</span>
+      <h3>Meeting Efficiency Score</h3>
+      <div class="fcard-section-label">What it does</div>
+      <p>After every meeting, the agent gives it a score out of 100 based on how well it went. The score is based on four things: how much time was spent on agenda topics (vs off-topic), how many clear decisions were made per hour, whether everyone participated or just one or two people dominated, and how clear the outcomes were. Over time you can see if your meetings are getting better.</p>
+      <div class="fcard-section-label">How it works</div>
+      <p>Arize Phoenix runs LLM-as-a-Judge evaluations on the meeting transcript. Gemini acts as the judge and scores each dimension (0–1). The four scores are combined into a single efficiency score. This score is stored and displayed on the dashboard with a trend chart over time.</p>
+      <div class="fcard-section-label">What you need to build</div>
+      <ul>
+        <li>Define the four eval dimensions as Arize eval templates</li>
+        <li>Run Gemini-as-judge on the full transcript after meeting ends</li>
+        <li>Combine scores into a single efficiency metric</li>
+        <li>Store scores per meeting and render a trend chart on the dashboard</li>
+      </ul>
+      <span class="fcard-tag">Arize LLM-as-a-Judge · Gemini judge · 4 eval dimensions · trend chart</span>
+    </div>
+
+    <!-- 08 -->
+    <div class="fcard reveal reveal-delay-1">
+      <span class="fcard-num">08</span>
+      <span class="fcard-icon">🔭</span>
+      <h3>Self-Introspection via Phoenix MCP</h3>
+      <div class="fcard-section-label">What it does</div>
+      <p>Every single decision the agent makes — every search it runs, every answer it gives, every drift detection — gets recorded as a trace in Arize Phoenix. The clever part is that the agent can then query its own past traces while it's running. Before answering a question, it can check "have I answered something like this before? How well did I do?" and use that to give a better answer this time.</p>
+      <div class="fcard-section-label">How it works</div>
+      <p>OpenInference instrumentation automatically captures every tool call and LLM call as a trace and sends it to Phoenix Cloud. The Phoenix MCP server is configured as one of the agent's tools. At runtime, the agent can call phoenix.get_traces(), phoenix.get_evals(), and phoenix.query_spans() to look at its own history.</p>
+      <div class="fcard-section-label">What you need to build</div>
+      <ul>
+        <li>Install and configure OpenInference + GoogleADKInstrumentor</li>
+        <li>Set up Phoenix Cloud account and confirm traces are flowing</li>
+        <li>Configure Phoenix MCP server in the agent's tool config</li>
+        <li>Add a pre-answer check where the agent queries its own past performance for similar questions</li>
+      </ul>
+      <span class="fcard-tag">OpenInference · GoogleADKInstrumentor · Phoenix MCP · phoenix.get_traces() · phoenix.get_evals()</span>
+    </div>
+
+    <!-- 09 -->
+    <div class="fcard reveal">
+      <span class="fcard-num">09</span>
+      <span class="fcard-icon">⚡</span>
+      <h3>Auto-Prompt Optimisation</h3>
+      <div class="fcard-section-label">What it does</div>
+      <p>Once a week, the system looks at all the answers the agent gave that scored poorly (below 0.6 out of 1.0). It figures out what went wrong — was it retrieving the wrong sources? Were answers too vague? Did it miss drift? Then it automatically generates better versions of the agent's instructions, tests them against the failing examples, and if the new version is better, it replaces the old one. The agent literally rewrites its own instructions to get better.</p>
+      <div class="fcard-section-label">How it works</div>
+      <p>A scheduled job queries Phoenix for low-scoring traces and groups them by failure type. Gemini generates improved system prompt variants for each failure cluster. The new prompts are evaluated against the failing examples using Arize evals. The prompt with the highest average score is promoted as the new active system prompt.</p>
+      <div class="fcard-section-label">What you need to build</div>
+      <ul>
+        <li>Build the weekly scheduled job (cron or Cloud Scheduler)</li>
+        <li>Query Phoenix API for traces with eval score &lt; 0.6</li>
+        <li>Group failures by type using Gemini clustering, then generate prompt variants and run A/B eval</li>
+        <li>Store versioned prompts and promote the winner</li>
+      </ul>
+      <span class="fcard-tag">Arize evals · Phoenix API · Gemini prompt generation · A/B evaluation · prompt versioning</span>
+    </div>
+
+    <!-- 10 -->
+    <div class="fcard reveal reveal-delay-1">
+      <span class="fcard-num">10</span>
+      <span class="fcard-icon">🎤</span>
+      <h3>Speaker Diarisation + Profiles</h3>
+      <div class="fcard-section-label">What it does</div>
+      <p>The agent knows who is speaking at all times. It doesn't just transcribe what was said — it tracks who said it. Over multiple meetings, it builds a lightweight profile for each person: what topics they usually own, how they communicate, what decisions they've been involved in. This lets the agent personalise its responses and know who to route a question to.</p>
+      <div class="fcard-section-label">How it works</div>
+      <p>Google Cloud STT's speaker diarisation feature labels each segment of audio with a speaker ID. These IDs are matched to known attendees via the calendar/meeting invite. Over time, a speaker profile is built from their transcript history — topics they discuss, decisions they make, their typical speaking patterns.</p>
+      <div class="fcard-section-label">What you need to build</div>
+      <ul>
+        <li>Enable speaker diarisation in the Google STT config</li>
+        <li>Map speaker IDs to attendee names from the meeting invite</li>
+        <li>Store per-speaker transcript history in the database</li>
+        <li>Build a lightweight profile aggregation that tracks topics and decision involvement per speaker</li>
+      </ul>
+      <span class="fcard-tag">Google STT diarisation · speaker ID mapping · profile aggregation · personalised responses</span>
+    </div>
+
+  </div>
+</section>
+
+<!-- ARCHITECTURE -->
+<div class="divider"></div>
+<section id="architecture">
+  <div class="sec-label reveal">02 · Architecture</div>
+  <h2 class="reveal reveal-delay-1">System Architecture</h2>
+  <p class="sec-desc reveal reveal-delay-2">Four input streams feed a central Gemini agent core, routing to five output capabilities — all observed by Arize Phoenix.</p>
+  <div class="arch-wrap reveal">
+    <div class="arch-label">MeetAI — End-to-End Architecture</div>
+    <div class="arch-row">
+      <div class="anode inp"><div class="anode-t">Live Audio</div><div class="anode-s">Meeting mic / bot</div></div>
+      <div class="anode inp"><div class="anode-t">Documents</div><div class="anode-s">Agendas, notes, slides</div></div>
+      <div class="anode inp"><div class="anode-t">Past Meetings</div><div class="anode-s">Indexed transcripts</div></div>
+      <div class="anode inp"><div class="anode-t">Calendar</div><div class="anode-s">Agenda, attendees</div></div>
+    </div>
+    <div class="arch-down">↓</div>
+    <div class="arch-row">
+      <div class="anode proc"><div class="anode-t">Speech-to-Text</div><div class="anode-s">Real-time transcription</div></div>
+      <div class="anode proc"><div class="anode-t">Doc Ingestion</div><div class="anode-s">Chunking + embedding</div></div>
+      <div class="anode proc"><div class="anode-t">Elastic Index</div><div class="anode-s">Vector + BM25 search</div></div>
+      <div class="anode proc"><div class="anode-t">Meeting Memory</div><div class="anode-s">In-session context</div></div>
+    </div>
+    <div class="arch-down">↓</div>
+    <div class="arch-row">
+      <div class="anode core"><div class="anode-t">Gemini Agent Core</div><div class="anode-s">Google ADK · Google Cloud Agent Builder</div></div>
+    </div>
+    <div class="arch-down">↓</div>
+    <div class="arch-row">
+      <div class="anode out"><div class="anode-t">Answer Q&amp;A</div><div class="anode-s">Past decision recall</div></div>
+      <div class="anode out"><div class="anode-t">Agenda Guard</div><div class="anode-s">Drift detection</div></div>
+      <div class="anode out"><div class="anode-t">Live Speaker</div><div class="anode-s">TTS voice in meeting</div></div>
+      <div class="anode out"><div class="anode-t">Action Tracker</div><div class="anode-s">Auto action items</div></div>
+      <div class="anode out"><div class="anode-t">Post-Meeting</div><div class="anode-s">Summary + indexing</div></div>
+    </div>
+    <div class="arch-down">↓</div>
+    <div class="arch-row">
+      <div class="anode obs"><div class="anode-t">Arize Phoenix (MCP)</div><div class="anode-s">Tracing · Evals · Self-introspection loop</div></div>
+    </div>
+    <div class="arch-down">↓</div>
+    <div class="arch-row">
+      <div class="anode dash"><div class="anode-t">Meeting Dashboard</div><div class="anode-s">Web UI · Eval scores · Trace viewer</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- PIPELINE -->
+<div class="divider"></div>
+<section id="pipeline">
+  <div class="sec-label reveal">03 · Pipeline</div>
+  <h2 class="reveal reveal-delay-1">Processing Pipeline</h2>
+  <p class="sec-desc reveal reveal-delay-2">Every meeting interaction flows through six stages, each instrumented with OpenInference traces sent to Arize Phoenix.</p>
+  <div class="pipe-list">
+    <div class="pipe-item reveal"><div class="pipe-num">1</div><div class="pipe-body"><h4>Audio Ingestion &amp; Transcription</h4><p>Google Cloud Speech-to-Text Streaming API transcribes audio in real time. Speaker diarisation assigns speaker labels. A rolling 30-second buffer feeds the agent loop continuously.</p><span class="pipe-badge">Google STT Streaming · speaker diarisation · 30s buffer</span></div></div>
+    <div class="pipe-item reveal"><div class="pipe-num">2</div><div class="pipe-body"><h4>Intent Classification</h4><p>Each transcript chunk is classified: question, action item, decision, or general discussion. Agenda drift is scored by comparing the current topic embedding against agenda item embeddings.</p><span class="pipe-badge">Gemini classification · cosine similarity · agenda embeddings</span></div></div>
+    <div class="pipe-item reveal"><div class="pipe-num">3</div><div class="pipe-body"><h4>Hybrid Search (Q&amp;A path)</h4><p>A hybrid Elasticsearch query combines BM25 keyword matching with Vertex AI vector similarity. Results are ranked by reciprocal rank fusion and returned with meeting date and speaker attribution.</p><span class="pipe-badge">Elasticsearch · BM25 + vector · RRF ranking · Vertex AI text-embedding-004</span></div></div>
+    <div class="pipe-item reveal"><div class="pipe-num">4</div><div class="pipe-body"><h4>Response Generation &amp; Speech</h4><p>Gemini generates a grounded response using retrieved context. Google Cloud TTS converts it to speech and plays it in the meeting channel. Response is logged with source chunks for tracing.</p><span class="pipe-badge">Gemini · Google TTS · source attribution · OpenInference trace</span></div></div>
+    <div class="pipe-item reveal"><div class="pipe-num">5</div><div class="pipe-body"><h4>Async Evaluation</h4><p>After every response, an async Arize eval job scores it on relevance, groundedness, and helpfulness using Gemini as judge. Low-scoring traces (&lt;0.6) are tagged for the weekly optimisation cycle.</p><span class="pipe-badge">Arize LLM-as-a-Judge · async eval · Gemini judge · trace tagging</span></div></div>
+    <div class="pipe-item reveal"><div class="pipe-num">6</div><div class="pipe-body"><h4>Post-Meeting Indexing</h4><p>Full transcript chunked into 200-token windows with 50-token overlap. Each chunk embedded with Vertex AI and indexed into Elasticsearch with meeting metadata, speaker labels, and extracted decisions.</p><span class="pipe-badge">200-token chunks · 50-token overlap · Vertex AI embedding · Elastic index</span></div></div>
+  </div>
+</section>
+
+<!-- ARIZE -->
+<div class="divider"></div>
+<section id="arize">
+  <div class="sec-label reveal">04 · Arize Integration</div>
+  <h2 class="reveal reveal-delay-1">Arize Phoenix &amp; Self-Improvement Loop</h2>
+  <p class="sec-desc reveal reveal-delay-2">MeetAI doesn't just use Phoenix for observability — it queries its own traces at runtime to improve future responses. This closes the self-improvement loop.</p>
+
+  <div class="code-wrap reveal">
+    <div class="code-bar"><div class="code-dots"><div class="cdot r"></div><div class="cdot a"></div><div class="cdot g"></div></div><div class="code-lang">Python · OpenInference instrumentation</div></div>
+<pre><span class="kw">from</span> openinference.instrumentation.google_adk <span class="kw">import</span> GoogleADKInstrumentor
+<span class="kw">from</span> phoenix.otel <span class="kw">import</span> register
+
+<span class="cm"># Register Phoenix Cloud as the trace destination</span>
+tracer_provider = <span class="fn">register</span>(
+    project_name=<span class="str">"meetai-agent"</span>,
+    api_key=PHOENIX_API_KEY,
+)
+
+<span class="cm"># Instrument the Google ADK agent — all tool calls, LLM calls,</span>
+<span class="cm"># and retrieval steps are automatically traced</span>
+<span class="fn">GoogleADKInstrumentor</span>().<span class="fn">instrument</span>(tracer_provider=tracer_provider)</pre>
+  </div>
+
+  <div class="code-wrap reveal" style="margin-top:14px;">
+    <div class="code-bar"><div class="code-dots"><div class="cdot r"></div><div class="cdot a"></div><div class="cdot g"></div></div><div class="code-lang">Python · Agent tool definitions</div></div>
+<pre><span class="dec">@tool</span>
+<span class="kw">def</span> <span class="fn">search_meeting_history</span>(query: str) -> list[dict]:
+    <span class="str">"""Hybrid search across all past meetings. Returns chunks with attribution."""</span>
+    ...
+
+<span class="dec">@tool</span>
+<span class="kw">def</span> <span class="fn">check_agenda_drift</span>(current_topic: str, agenda: list[str]) -> dict:
+    <span class="str">"""Returns drift score (0–1) and suggested redirect message."""</span>
+    ...
+
+<span class="dec">@tool</span>
+<span class="kw">def</span> <span class="fn">log_action_item</span>(owner: str, task: str, deadline: str) -> str:
+    <span class="str">"""Logs a new action item and returns confirmation."""</span>
+    ...
+
+<span class="dec">@tool</span>
+<span class="kw">def</span> <span class="fn">speak</span>(message: str) -> <span class="kw">None</span>:
+    <span class="str">"""Converts message to speech and plays in the meeting channel."""</span>
+    ...</pre>
+  </div>
+
+  <div class="eval-row">
+    <div class="eval-card reveal">
+      <div class="eval-score" style="color:var(--olive);">0.91</div>
+      <div class="eval-name">Relevance</div>
+      <div class="eval-desc">Retrieved context matches the question asked. Scored by Gemini judge on a 0–1 scale.</div>
+      <div class="bar"><div class="bar-fill" style="width:0%; background:var(--olive);" data-width="91%"></div></div>
+    </div>
+    <div class="eval-card reveal reveal-delay-1">
+      <div class="eval-score" style="color:var(--warm-d);">0.87</div>
+      <div class="eval-name">Groundedness</div>
+      <div class="eval-desc">Response claims are supported by retrieved source chunks. Prevents hallucination.</div>
+      <div class="bar"><div class="bar-fill" style="width:0%; background:var(--warm-d);" data-width="87%"></div></div>
+    </div>
+    <div class="eval-card reveal reveal-delay-2">
+      <div class="eval-score" style="color:var(--olive-l);">0.83</div>
+      <div class="eval-name">Helpfulness</div>
+      <div class="eval-desc">Response is actionable and directly addresses the participant's need.</div>
+      <div class="bar"><div class="bar-fill" style="width:0%; background:var(--olive-l);" data-width="83%"></div></div>
+    </div>
+  </div>
+
+  <div style="background:var(--surface2); border:1px solid var(--border); border-radius:12px; padding:26px; margin-top:14px;" class="reveal">
+    <div style="font-family:var(--mono); font-size:10.5px; color:var(--dim); letter-spacing:0.1em; text-transform:uppercase; margin-bottom:16px;">Weekly Self-Improvement Cycle</div>
+    <div class="improve-grid">
+      <div class="improve-cell"><div class="improve-cell-n">① Query Phoenix</div><div class="improve-cell-d">Fetch all traces with eval score &lt; 0.6 from the past week.</div></div>
+      <div class="improve-cell"><div class="improve-cell-n">② Group Failures</div><div class="improve-cell-d">Cluster by failure type: wrong source, vague answer, missed drift.</div></div>
+      <div class="improve-cell"><div class="improve-cell-n">③ Generate Variants</div><div class="improve-cell-d">Gemini generates improved system prompt variants for each failure cluster.</div></div>
+      <div class="improve-cell"><div class="improve-cell-n">④ A/B Eval &amp; Promote</div><div class="improve-cell-d">New prompt vs old evaluated on failing examples. Winner promoted.</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- STACK -->
+<div class="divider"></div>
+<section id="stack">
+  <div class="sec-label reveal">05 · Tech Stack</div>
+  <h2 class="reveal reveal-delay-1">Technology Stack</h2>
+  <p class="sec-desc reveal reveal-delay-2">Every component chosen for the Arize track requirements: Google ADK for tracing, Gemini for generation, Elasticsearch for memory.</p>
+  <div class="stack-grid reveal">
+    <div class="stack-row"><span class="stack-comp">Agent runtime</span><span class="stack-tech">Google ADK</span></div>
+    <div class="stack-row"><span class="stack-comp">LLM</span><span class="stack-tech">Gemini via Vertex AI</span></div>
+    <div class="stack-row"><span class="stack-comp">Tracing</span><span class="stack-tech">OpenInference + Arize Phoenix Cloud</span></div>
+    <div class="stack-row"><span class="stack-comp">MCP integration</span><span class="stack-tech">@arizeai/phoenix-mcp</span></div>
+    <div class="stack-row"><span class="stack-comp">Search / indexing</span><span class="stack-tech">Elasticsearch (BM25 + vector)</span></div>
+    <div class="stack-row"><span class="stack-comp">Speech-to-text</span><span class="stack-tech">Google Cloud STT Streaming</span></div>
+    <div class="stack-row"><span class="stack-comp">Text-to-speech</span><span class="stack-tech">Google Cloud TTS</span></div>
+    <div class="stack-row"><span class="stack-comp">Meeting bot</span><span class="stack-tech">Recall.ai / local WebRTC</span></div>
+    <div class="stack-row"><span class="stack-comp">Embeddings</span><span class="stack-tech">Vertex AI text-embedding-004</span></div>
+    <div class="stack-row"><span class="stack-comp">Backend</span><span class="stack-tech">Python · FastAPI</span></div>
+    <div class="stack-row"><span class="stack-comp">Frontend</span><span class="stack-tech">React dashboard</span></div>
+    <div class="stack-row"><span class="stack-comp">Hosting</span><span class="stack-tech">Google Cloud Run</span></div>
+  </div>
+</section>
+
+<!-- ROADMAP -->
+<div class="divider"></div>
+<section id="roadmap">
+  <div class="sec-label reveal">06 · Roadmap</div>
+  <h2 class="reveal reveal-delay-1">Implementation Roadmap</h2>
+  <p class="sec-desc reveal reveal-delay-2">Five phases across five days. Each phase ends with a testable milestone.</p>
+  <div class="roadmap">
+    <div class="phase reveal"><div class="phase-badge p1">Phase 1</div><div class="phase-body"><h4>Foundation</h4><p>Set up Google ADK agent with OpenInference instrumentation. Create Phoenix Cloud account and confirm traces are flowing. Build the Elasticsearch index schema: <code style="font-family:var(--mono);font-size:12px;color:var(--olive);">meeting_id, date, speaker, text_chunk, embedding, topic_tags, decisions[]</code>. Write the indexing pipeline: transcript → 200-token chunks with overlap → Vertex AI embedding → Elastic index.</p><div class="phase-days">Day 1–2</div></div></div>
+    <div class="phase reveal"><div class="phase-badge p2">Phase 2</div><div class="phase-body"><h4>Core Agent Tools</h4><p>Build the agent's tool suite as ADK functions: <code style="font-family:var(--mono);font-size:12px;color:var(--olive);">search_meeting_history</code>, <code style="font-family:var(--mono);font-size:12px;color:var(--olive);">check_agenda_drift</code>, <code style="font-family:var(--mono);font-size:12px;color:var(--olive);">log_action_item</code>, <code style="font-family:var(--mono);font-size:12px;color:var(--olive);">speak</code>. Wire up streaming STT to feed a rolling 30-second transcript buffer to the agent loop.</p><div class="phase-days">Day 2–3</div></div></div>
+    <div class="phase reveal"><div class="phase-badge p3">Phase 3</div><div class="phase-body"><h4>Arize Integration</h4><p>Install and configure OpenInference instrumentation. Configure the Phoenix MCP server so the agent can call <code style="font-family:var(--mono);font-size:12px;color:var(--olive);">phoenix.get_traces()</code>, <code style="font-family:var(--mono);font-size:12px;color:var(--olive);">phoenix.get_evals()</code>, and <code style="font-family:var(--mono);font-size:12px;color:var(--olive);">phoenix.query_spans()</code> at runtime. Set up LLM-as-a-Judge eval pipeline using Gemini as judge.</p><div class="phase-days">Day 3</div></div></div>
+    <div class="phase reveal"><div class="phase-badge p4">Phase 4</div><div class="phase-body"><h4>Self-Improvement Loop</h4><p>Build the weekly optimisation job: query Phoenix for traces with eval score &lt; 0.6, group by failure type, use Gemini to generate improved prompt variants, run A/B evaluation against failing examples, promote the winner. At runtime, the agent checks its average answer quality for the current question type and adjusts retrieval strategy accordingly.</p><div class="phase-days">Day 4</div></div></div>
+    <div class="phase reveal"><div class="phase-badge p5">Phase 5</div><div class="phase-body"><h4>Dashboard &amp; Demo Polish</h4><p>Build the React dashboard: live transcript with speaker labels and topic tags, agenda adherence timeline (green on-topic / amber drifting), live action items board, meeting efficiency score with trend chart, Phoenix trace viewer embedded or linked, post-meeting summary view. Record the demo video.</p><div class="phase-days">Day 5</div></div></div>
+  </div>
+</section>
+
+<!-- JUDGING -->
+<div class="divider"></div>
+<section>
+  <div class="sec-label reveal">07 · Judging</div>
+  <h2 class="reveal reveal-delay-1">Judging Criteria Alignment</h2>
+  <p class="sec-desc reveal reveal-delay-2">How MeetAI maps to each evaluation criterion for the Arize track.</p>
+  <table class="crit-table reveal">
+    <thead><tr><th>Criterion</th><th>How MeetAI scores</th><th>Signal</th></tr></thead>
+    <tbody>
+      <tr><td><div class="crit-name">Technical implementation</div></td><td style="color:var(--muted);font-size:13.5px;">Google ADK + OpenInference tracing + Phoenix MCP + Elasticsearch hybrid search + streaming STT/TTS — full production stack with every Arize integration point covered.</td><td><span class="pill-strong">Strong</span></td></tr>
+      <tr><td><div class="crit-name">Design</div></td><td style="color:var(--muted);font-size:13.5px;">Live dashboard with agenda adherence timeline, efficiency score visualisations, trace viewer, and speaker-labelled transcript. Visually compelling demo.</td><td><span class="pill-strong">Strong</span></td></tr>
+      <tr><td><div class="crit-name">Potential impact</div></td><td style="color:var(--muted);font-size:13.5px;">Every company runs meetings. $37B/year wasted in unproductive meetings in the US alone. Universal problem with a clear, measurable improvement metric.</td><td><span class="pill-strong">Strong</span></td></tr>
+      <tr><td><div class="crit-name">Quality of idea</div></td><td style="color:var(--muted);font-size:13.5px;">Self-improving agent that gets better at running your specific meetings the more you use it. Agenda drift detection is a genuinely novel "wow" moment. Phoenix self-introspection closes the loop in a way no other submission will.</td><td><span class="pill-strong">Strong</span></td></tr>
+      <tr><td><div class="crit-name">Arize-specific</div></td><td style="color:var(--muted);font-size:13.5px;">Meaningful tracing on every agent decision, real self-improvement loop via Phoenix MCP, LLM-as-a-Judge evals on every response, and runtime self-introspection. Hits all three Arize track requirements.</td><td><span class="pill-strong">Strong</span></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- DEMO -->
+<div class="divider"></div>
+<section>
+  <div class="sec-label reveal">08 · Demo</div>
+  <h2 class="reveal reveal-delay-1">Demo Video Script</h2>
+  <p class="sec-desc reveal reveal-delay-2">3-minute structure. Build the video around the agenda drift scene — that's the winning shot.</p>
+  <div class="demo-list reveal">
+    <div class="demo-item"><div class="demo-time">0:00–0:20</div><div><h4>Problem Statement</h4><p>"Meetings are broken. 30% of meeting time is off-topic. Nobody remembers what was decided. MeetAI fixes this."</p></div></div>
+    <div class="demo-item"><div class="demo-time">0:20–1:00</div><div><h4>Live Q&amp;A Recall</h4><p>Show the agent joining a mock meeting. Demonstrate wake-phrase activation. Someone asks "what did we decide about the API pricing last month?" — agent speaks the answer with source attribution in under 3 seconds.</p></div></div>
+    <div class="demo-item"><div class="demo-time">1:00–1:45</div><div><h4>Agenda Drift Detection — The Wow Moment</h4><p>Conversation veers off-topic. The agent speaks up: "We've been discussing team offsites for 90 seconds — that's not on today's agenda. Should we park it?" Pause for effect. This is the scene that wins.</p></div></div>
+    <div class="demo-item"><div class="demo-time">1:45–2:20</div><div><h4>Arize Phoenix Dashboard</h4><p>Show traces for every decision the agent made. Show an eval score. Show the self-improvement loop: a previously low-scoring trace, and the improved prompt that was generated from it.</p></div></div>
+    <div class="demo-item"><div class="demo-time">2:20–3:00</div><div><h4>Post-Meeting &amp; Trend</h4><p>Auto-generated summary, action items with owners, efficiency score of 87%, full meeting indexed for future recall. Close with the trend chart showing meeting efficiency improving over weeks as the agent self-optimises.</p></div></div>
+  </div>
+</section>
+
+<!-- REPO -->
+<div class="divider"></div>
+<section>
+  <div class="sec-label reveal">09 · Repository</div>
+  <h2 class="reveal reveal-delay-1">Repository Structure</h2>
+  <p class="sec-desc reveal reveal-delay-2">Organised by concern. Each directory is independently deployable.</p>
+  <div class="repo-tree reveal">
+<span class="dir">meetai/</span>
+├── <span class="dir">agent/</span>
+│   ├── <span class="file">main.py</span>              <span class="cm"># ADK agent with Phoenix instrumentation</span>
+│   ├── <span class="file">tools.py</span>             <span class="cm"># All agent tools (search, drift, speak, log)</span>
+│   ├── <span class="file">prompts.py</span>           <span class="cm"># System prompts (versioned)</span>
+│   └── <span class="file">eval_loop.py</span>         <span class="cm"># Weekly self-improvement job</span>
+├── <span class="dir">indexer/</span>
+│   ├── <span class="file">transcriber.py</span>       <span class="cm"># STT pipeline + chunking</span>
+│   ├── <span class="file">embedder.py</span>          <span class="cm"># Vertex AI text-embedding-004</span>
+│   └── <span class="file">elastic_client.py</span>    <span class="cm"># Index schema + hybrid search</span>
+├── <span class="dir">dashboard/</span>               <span class="cm"># React frontend</span>
+│   └── <span class="dir">src/</span>
+│       ├── <span class="file">LiveTranscript.tsx</span>   <span class="cm"># Speaker-labelled live feed</span>
+│       ├── <span class="file">AgendaTimeline.tsx</span>   <span class="cm"># On-topic / drift visualisation</span>
+│       ├── <span class="file">ActionItems.tsx</span>      <span class="cm"># Live action item board</span>
+│       └── <span class="file">EfficiencyScore.tsx</span>  <span class="cm"># Score + trend chart</span>
+├── <span class="dir">api/</span>                     <span class="cm"># FastAPI backend</span>
+│   ├── <span class="file">routes.py</span>
+│   └── <span class="file">schemas.py</span>
+├── <span class="dir">evals/</span>
+│   └── <span class="file">judge.py</span>             <span class="cm"># LLM-as-a-Judge eval pipeline</span>
+├── <span class="file">docker-compose.yml</span>
+└── <span class="file">README.md</span>
+  </div>
+</section>
+
+<!-- PITCH -->
+<div class="pitch reveal">
+  <p>"MeetAI is the first AI agent that attends your meetings, enforces your agenda, recalls every past decision, and <em>continuously improves itself</em> using Arize Phoenix observability — so your meetings get measurably better every week."</p>
+</div>
+
+</div><!-- /wrap -->
+
+<footer>
+  MeetAI · Meeting Orchestrator Agent · Google Hackathon · Arize Track · May 2026
+</footer>
+
+<script>
+// ── Scroll reveal ──
+const revealEls = document.querySelectorAll('.reveal');
+const revealObserver = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      e.target.classList.add('visible');
+      revealObserver.unobserve(e.target);
+    }
+  });
+}, { threshold: 0.12 });
+revealEls.forEach(el => revealObserver.observe(el));
+
+// ── Animate bars when visible ──
+const bars = document.querySelectorAll('.bar-fill[data-width]');
+const barObserver = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      e.target.style.width = e.target.dataset.width;
+      barObserver.unobserve(e.target);
+    }
+  });
+}, { threshold: 0.5 });
+bars.forEach(b => barObserver.observe(b));
+
+// ── Nav scroll shadow + active link ──
+const nav = document.getElementById('nav');
+const sections = document.querySelectorAll('section[id]');
+const navLinks = document.querySelectorAll('.nav-links a');
+
+window.addEventListener('scroll', () => {
+  nav.classList.toggle('scrolled', window.scrollY > 20);
+
+  let current = '';
+  sections.forEach(s => {
+    if (window.scrollY >= s.offsetTop - 100) current = s.id;
+  });
+  navLinks.forEach(a => {
+    a.classList.toggle('active', a.getAttribute('href') === '#' + current);
+  });
+}, { passive: true });
+
+// ── Trigger reveals already in view on load ──
+setTimeout(() => {
+  revealEls.forEach(el => {
+    const rect = el.getBoundingClientRect();
+    if (rect.top < window.innerHeight) el.classList.add('visible');
+  });
+}, 100);
+</script>
+</body>
+</html>
